@@ -4,18 +4,19 @@ import datetime
 import time 
 import io
 import altair as alt
-import gspread # Library baru untuk Google Sheets
+import json
+import gspread
 
 # ---------------------------------
-# 1. KONFIGURASI DATABASE (GOOGLE SHEETS)
+# 1. KONFIGURASI DATABASE (GOOGLE SHEETS VIA SECRETS)
 # ---------------------------------
-# Menghubungkan ke Google Sheets menggunakan kunci rahasia
 @st.cache_resource
 def init_connection():
-    return gspread.service_account(filename='credentials.json')
+    # Membaca data rahasia dari brankas Streamlit Cloud
+    secrets_dict = dict(st.secrets["gcp_service_account"])
+    return gspread.service_account_from_dict(secrets_dict)
 
 client = init_connection()
-# Pastikan nama ini SAMA PERSIS dengan judul file Google Sheets Anda
 SHEET_NAME = 'Database_Banser_X7' 
 sheet = client.open(SHEET_NAME).sheet1
 
