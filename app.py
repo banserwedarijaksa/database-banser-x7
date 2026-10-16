@@ -88,7 +88,7 @@ with col_logo:
         st.error("Logo belum ada") 
 with col_judul:
     st.title("DATABASE BANSER X-7")
-    st.markdown("Sistem penginputan dan manajemen data anggota Ansor Banser.")
+    st.markdown("Sistem penginputan dan manajemen data anggota Banser.")
 
 tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota", "📊 Dashboard Statistik"])
 
@@ -97,71 +97,72 @@ tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota",
 # ---------------------------------
 with tab1:
     st.subheader("Data Anggota")
-    col1, col2 = st.columns(2)
+    with st.form(key="form_anggota", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            nama = st.text_input("1. Nama Lengkap *", placeholder="Masukkan nama sesuai KTP", key="inp_nama")
+            tempat_lahir = st.text_input("2. Tempat Lahir *", key="inp_tempat")
+            min_date = datetime.date(1950, 1, 1) 
+            max_date = datetime.date.today()     
+            tanggal_lahir = st.date_input("3. Tanggal Lahir *", min_value=min_date, max_value=max_date, format="DD/MM/YYYY", key="inp_tanggal")
+            no_hp = st.text_input("4. Nomor HP/WhatsApp *", placeholder="Contoh: 08123456789", key="inp_hp")
+            
+        with col2:
+            pekerjaan = st.text_input("6. Pekerjaan *", key="inp_kerja")
+            pilihan_pendidikan = ["", "SD/MI", "SMP/MTS", "SMA/SMK/MA", "Diploma", "S1", "S2", "S3", "Tidak bersekolah"]
+            pendidikan = st.selectbox("7. Pendidikan Terakhir *", pilihan_pendidikan, key="inp_pendidikan")
+            alamat = st.text_area("5. Alamat Tinggal *", placeholder="Jalan, RT/RW, Desa/Kelurahan", key="inp_alamat")
     
-    with col1:
-        nama = st.text_input("1. Nama Lengkap *", placeholder="Masukkan nama sesuai KTP", key="inp_nama")
-        tempat_lahir = st.text_input("2. Tempat Lahir *", key="inp_tempat")
-        min_date = datetime.date(1960, 1, 1) 
-        max_date = datetime.date.today()     
-        tanggal_lahir = st.date_input("3. Tanggal Lahir *", min_value=min_date, max_value=max_date, format="DD/MM/YYYY", key="inp_tanggal")
-        no_hp = st.text_input("4. Nomor HP/WhatsApp *", placeholder="Contoh: 08123456789", key="inp_hp")
+        st.divider()
+        st.subheader("Data Keorganisasian")
+        col3, col4 = st.columns(2)
         
-    with col2:
-        pekerjaan = st.text_input("6. Pekerjaan *", key="inp_kerja")
-        pilihan_pendidikan = ["", "SD/MI", "SMP/MTS", "SMA/SMK/MA", "Diploma", "S1", "S2", "S3", "Tidak bersekolah"]
-        pendidikan = st.selectbox("7. Pendidikan Terakhir *", pilihan_pendidikan, key="inp_pendidikan")
-        alamat = st.text_area("5. Alamat Tinggal *", placeholder="Jalan, RT/RW, Desa/Kelurahan", key="inp_alamat")
-
-    st.divider()
-    st.subheader("Data Keorganisasian")
-    col3, col4 = st.columns(2)
+        with col3:
+            pilihan_pengkaderan = ["Diklatsar", "Susbalan", "Susbapin", "Diklatsus", "Suspelat", "Belum pernah"]
+            pengkaderan_list = st.multiselect("8. Jenjang Pengkaderan *", pilihan_pengkaderan, key="inp_kader")
+            
+            pilihan_satkoryon = ["", "Batangan", "Cluwak", "Dukuhseti", "Gabus", "Gembong", "Gunungwungkal", "Jaken", "Jakenan", "Juwana", "Kayen", "Margorejo", "Margoyoso", "Pati", "Pucakwangi", "Sukolilo", "Tambakromo", "Tayu", "Tlogowungu", "Trangkil", "Wedarijaksa", "Winong"]
+            satkoryon = st.selectbox("9. Satkoryon *", pilihan_satkoryon, key="inp_satkoryon")
+            
+            if satkoryon in data_desa:
+                satkorkel = st.selectbox("10. Satkorkel (Tingkat Desa/Kelurahan) *", data_desa[satkoryon], key="inp_satkorkel")
+            else:
+                satkorkel = st.text_input("10. Satkorkel (Tingkat Desa/Kelurahan) *", key="inp_satkorkel_text")
+            
+        with col4:
+            status = st.selectbox("12. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
+            pilihan_minat = ["Olahraga", "Musik", "Seni Rupa", "Menulis", "Matematika", "Bahasa", "Sejarah & Budaya", "Teknologi", "Kuliner", "Mekanik", "Petualangan", "Kegiatan Sosial", "Keagamaan", "Dunia Digital", "Game", "Lainnya_"]
+            minat_bakat_list = st.multiselect("11. Minat & Bakat *", pilihan_minat, key="inp_minat")
     
-    with col3:
-        pilihan_pengkaderan = ["Diklatsar", "Susbalan", "Susbapin", "Diklatsus", "Suspelat", "Belum pernah"]
-        pengkaderan_list = st.multiselect("8. Jenjang Pengkaderan *", pilihan_pengkaderan, key="inp_kader")
+        st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
         
-        pilihan_satkoryon = ["", "Batangan", "Cluwak", "Dukuhseti", "Gabus", "Gembong", "Gunungwungkal", "Jaken", "Jakenan", "Juwana", "Kayen", "Margorejo", "Margoyoso", "Pati", "Pucakwangi", "Sukolilo", "Tambakromo", "Tayu", "Tlogowungu", "Trangkil", "Wedarijaksa", "Winong"]
-        satkoryon = st.selectbox("9. Satkoryon *", pilihan_satkoryon, key="inp_satkoryon")
-        
-        if satkoryon in data_desa:
-            satkorkel = st.selectbox("10. Satkorkel (Tingkat Desa/Kelurahan) *", data_desa[satkoryon], key="inp_satkorkel")
-        else:
-            satkorkel = st.text_input("10. Satkorkel (Tingkat Desa/Kelurahan) *", key="inp_satkorkel_text")
-        
-    with col4:
-        status = st.selectbox("12. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
-        pilihan_minat = ["Olahraga", "Musik", "Seni Rupa", "Menulis", "Matematika", "Bahasa", "Sejarah & Budaya", "Teknologi", "Kuliner", "Mekanik", "Petualangan", "Kegiatan Sosial", "Keagamaan", "Dunia Digital", "Game", "Lainnya_"]
-        minat_bakat_list = st.multiselect("11. Minat & Bakat *", pilihan_minat, key="inp_minat")
-
-    st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
-    
-    if st.button("Simpan Data Anggota", type="primary"):
-        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and status and minat_bakat_list:
-            
-            # Persiapan data untuk Google Sheets
-            pengkaderan_str = ", ".join(pengkaderan_list)
-            minat_bakat_str = ", ".join(minat_bakat_list) 
-            waktu_input = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Format data persis mengikuti urutan kolom di Google Sheets Anda
-            data_baru = (
-                nama, tempat_lahir, str(tanggal_lahir), no_hp, 
-                alamat, pekerjaan, pendidikan, 
-                pengkaderan_str, satkoryon, satkorkel, 
-                minat_bakat_str, status, waktu_input
-            )
-            
-            with st.spinner("Menyimpan ke awan..."):
-                insert_data(data_baru)
-            
-            st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
-            time.sleep(1.5)
-            for key in st.session_state.keys():
-                del st.session_state[key]
-            st.rerun() 
-        else:
-            st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
+        if st.form_submit_button("Simpan Data Anggota", type="primary"):
+            if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and status and minat_bakat_list:
+                
+                # Persiapan data untuk Google Sheets
+                pengkaderan_str = ", ".join(pengkaderan_list)
+                minat_bakat_str = ", ".join(minat_bakat_list) 
+                waktu_input = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Format data persis mengikuti urutan kolom di Google Sheets Anda
+                data_baru = (
+                    nama, tempat_lahir, str(tanggal_lahir), no_hp, 
+                    alamat, pekerjaan, pendidikan, 
+                    pengkaderan_str, satkoryon, satkorkel, 
+                    minat_bakat_str, status, waktu_input
+                )
+                
+                with st.spinner("Menyimpan ke awan..."):
+                    insert_data(data_baru)
+                
+                st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
+                time.sleep(1.5)
+                for key in st.session_state.keys():
+                    del st.session_state[key]
+                st.rerun() 
+            else:
+                st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
 
 # ---------------------------------
 # 5. TAB 2: TAMPILAN DATABASE
