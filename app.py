@@ -157,7 +157,24 @@ with tab1:
             
             st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
             time.sleep(1.5)
-            st.session_state.clear()
+            # Mengosongkan isian dengan cara menimpa state dengan nilai kosong/default
+            st.session_state["inp_nama"] = ""
+            st.session_state["inp_tempat"] = ""
+            st.session_state["inp_tanggal"] = datetime.date.today()
+            st.session_state["inp_hp"] = ""
+            st.session_state["inp_alamat"] = ""
+            st.session_state["inp_kerja"] = ""
+            st.session_state["inp_pendidikan"] = ""
+            st.session_state["inp_kader"] = []
+            st.session_state["inp_satkoryon"] = ""
+            st.session_state["inp_status"] = ""
+            st.session_state["inp_minat"] = []
+            
+            # Hapus state dinamis untuk Satkorkel agar bersih saat satkoryon kembali kosong
+            if "inp_satkorkel" in st.session_state:
+                del st.session_state["inp_satkorkel"]
+            if "inp_satkorkel_text" in st.session_state:
+                del st.session_state["inp_satkorkel_text"]
             st.rerun()
         else:
             st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
