@@ -34,7 +34,7 @@ def get_all_data():
             'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
             'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
             'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
-            'minat_bakat', 'status_keanggotaan', 'waktu_input'
+            'minat_bakat', 'status_keanggotaan', 'waktu_input', 'admin'
         ])
         
     df = pd.DataFrame(records)
@@ -44,7 +44,7 @@ def get_all_data():
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
         'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
         'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
-        'minat_bakat', 'status_keanggotaan', 'waktu_input'
+        'minat_bakat', 'status_keanggotaan', 'waktu_input', 'admin'
     ]
     return df
 
@@ -79,7 +79,44 @@ data_desa = {
 # 3. KONFIGURASI HALAMAN STREAMLIT
 # ---------------------------------
 st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout="wide")
+# ---------------------------------
+# SISTEM LOGIN (MULTI-USER VIA SECRETS)
+# ---------------------------------
+# 1. Pastikan status login dan nama petugas ada di memori
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["nama_petugas"] = ""
 
+# 2. Jika belum login, tampilkan form login dan hentikan kode di bawahnya
+if not st.session_state["logged_in"]:
+    st.markdown("<h2 style='text-align: center;'>🔐 Login Database Banser X-7</h2>", unsafe_allow_html=True)
+    
+    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
+    with col_log2:
+        with st.form("login_form"):
+            in_user = st.text_input("Username")
+            in_pass = st.text_input("Password", type="password")
+            submit_login = st.form_submit_button("Masuk", type="primary", use_container_width=True)
+            
+            if submit_login:
+                # Mengecek apakah username ada di Secrets dan password cocok
+                if in_user in st.secrets["passwords"] and st.secrets["passwords"][in_user] == in_pass:
+                    st.session_state["logged_in"] = True
+                    st.session_state["nama_petugas"] = in_user
+                    st.rerun()
+                else:
+                    st.error("⚠️ Username atau Password salah!")
+    
+    # st.stop() akan menghentikan eksekusi script di sini jika belum login
+    st.stop()
+
+# 3. Sidebar untuk tombol Logout dan Info Petugas
+with st.sidebar:
+    st.success(f"Masuk sebagai:\n**{st.session_state['nama_petugas']}**")
+    if st.button("Keluar / Logout", use_container_width=True):
+        st.session_state.clear() # Bersihkan memori saat logout
+        st.rerun()
+# ---------------------------------
 col_logo, col_judul = st.columns([1, 11])
 with col_logo:
     try:
@@ -149,7 +186,7 @@ with tab1:
                 nama, tempat_lahir, str(tanggal_lahir), no_hp, 
                 alamat, pekerjaan, pendidikan, 
                 pengkaderan_str, satkoryon, satkorkel, 
-                minat_bakat_str, status, waktu_input
+                minat_bakat_str, status, waktu_input, st.session_state["nama_petugas"]
             )
             
             with st.spinner("Menyimpan ke awan..."):
