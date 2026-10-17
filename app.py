@@ -134,6 +134,32 @@ tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota",
 # ---------------------------------
 with tab1:
     st.subheader("Data Anggota")
+    # ---------------------------------
+# 4. TAB 1: FORM PENGINPUTAN
+# ---------------------------------
+with tab1:
+    st.subheader("Data Anggota")
+    # --- TAMBAHKAN BLOK KODE INI ---
+    # Mengecek apakah ada instruksi untuk mengosongkan form setelah sukses menyimpan
+    if "sukses_simpan" in st.session_state and st.session_state["sukses_simpan"]:
+        st.session_state["inp_nama"] = ""
+        st.session_state["inp_tempat"] = ""
+        st.session_state["inp_tanggal"] = datetime.date.today()
+        st.session_state["inp_hp"] = ""
+        st.session_state["inp_alamat"] = ""
+        st.session_state["inp_kerja"] = ""
+        st.session_state["inp_pendidikan"] = ""
+        st.session_state["inp_kader"] = []
+        st.session_state["inp_satkoryon"] = ""
+        st.session_state["inp_status"] = ""
+        st.session_state["inp_minat"] = []
+        if "inp_satkorkel" in st.session_state:
+            del st.session_state["inp_satkorkel"]
+        if "inp_satkorkel_text" in st.session_state:
+            del st.session_state["inp_satkorkel_text"]
+            
+        st.session_state["sukses_simpan"] = False # Matikan kembali penandanya
+    # -------------------------------
     col1, col2 = st.columns(2)
     
     with col1:
@@ -194,7 +220,7 @@ with tab1:
             
             st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
             time.sleep(1.5)
-            st.session_state.clear()
+            st.session_state["sukses_simpan"] = True
             st.rerun()
         else:
             st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
