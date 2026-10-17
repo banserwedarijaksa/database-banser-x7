@@ -156,10 +156,9 @@ with tab1:
                 insert_data(data_baru)
             
             st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
-            time.sleep(1.5)
-            for key in st.session_state.keys():
-                del st.session_state[key]
-            st.rerun() 
+            time.sleep(2)
+            st.session_state.clear()
+            st.rerun()
         else:
             st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
 
