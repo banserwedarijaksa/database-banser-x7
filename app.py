@@ -156,7 +156,7 @@ with tab1:
                 insert_data(data_baru)
             
             st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
-            time.sleep(2)
+            time.sleep(1.5)
             st.session_state.clear()
             st.rerun()
         else:
