@@ -181,7 +181,7 @@ with col_judul:
     st.title("DATABASE BANSER X-7")
     st.markdown("Sistem penginputan dan manajemen data anggota Banser.")
 
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota", "📊 Dashboard Statistik", "✏️ Edit Data"])
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota", "📊 Dashboard Statistik", "✏️ Update Data"])
 
 # ---------------------------------
 # TAB 1: FORM PENGINPUTAN
@@ -392,7 +392,7 @@ with tab3:
             st.altair_chart(chart_kader, use_container_width=True)
 
 # ---------------------------------
-# TAB 4: EDIT DATA
+# TAB 4: UPDATE DATA
 # ---------------------------------
 with tab4:
     st.subheader("Edit / Pembaruan Data Anggota")
