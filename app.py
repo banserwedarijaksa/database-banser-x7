@@ -80,15 +80,13 @@ data_desa = {
 # 3. KONFIGURASI HALAMAN STREAMLIT
 # ---------------------------------
 st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout="wide")
+
+# ---------------------------------
+# SISTEM LOGIN (MULTI-USER VIA SECRETS & COOKIES)
 # ---------------------------------
 # Inisialisasi pengontrol cookie
 cookie_controller = CookieController()
-# ---------------------------------
-# Inisialisasi pengontrol cookie
-cookie_controller = CookieController()
-# ---------------------------------
-# SISTEM LOGIN (MULTI-USER VIA SECRETS)
-# ---------------------------------
+
 # 1. Baca cookie (saat refresh, Streamlit mungkin butuh waktu sekian milidetik untuk mendapatkannya)
 cookie_logged_in = cookie_controller.get('logged_in')
 cookie_nama_petugas = cookie_controller.get('nama_petugas')
@@ -148,56 +146,9 @@ with st.sidebar:
         # Beri jeda agar instruksi hapus cookie sampai ke browser
         time.sleep(0.5)
         st.rerun()
+
 # ---------------------------------
-# 1. Baca cookie terlebih dahulu sebelum mengecek session_state
-cookie_logged_in = cookie_controller.get('logged_in')
-cookie_nama_petugas = cookie_controller.get('nama_petugas')
-
-if "logged_in" not in st.session_state:
-    # Jika ada cookie login yang bernilai "True", otomatiskan login
-    if cookie_logged_in == "True":
-        st.session_state["logged_in"] = True
-        st.session_state["nama_petugas"] = cookie_nama_petugas
-    else:
-        st.session_state["logged_in"] = False
-        st.session_state["nama_petugas"] = ""
-
-# 2. Jika belum login, tampilkan form login
-if not st.session_state["logged_in"]:
-    st.markdown("<h2 style='text-align: center;'>🔐 Login Database Banser X-7</h2>", unsafe_allow_html=True)
-
-    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
-    with col_log2:
-        with st.form("login_form"):
-            in_user = st.text_input("Username")
-            in_pass = st.text_input("Password", type="password")
-            submit_login = st.form_submit_button("Masuk", type="primary", use_container_width=True)
-
-            if submit_login:
-                # Mengecek apakah username ada di Secrets dan password cocok
-                if in_user in st.secrets["passwords"] and st.secrets["passwords"][in_user] == in_pass:
-                    st.session_state["logged_in"] = True
-                    st.session_state["nama_petugas"] = in_user
-
-                    # SIMPAN KE COOKIE AGAR TAHAN REFRESH
-                    cookie_controller.set('logged_in', "True")
-                    cookie_controller.set('nama_petugas', in_user)
-
-                    st.rerun()
-                else:
-                    st.error("⚠️ Username atau Password salah!")
-
-    st.stop()
-
-# 3. Sidebar untuk tombol Logout dan Info Petugas
-with st.sidebar:
-    st.success(f"Masuk sebagai:\n**{st.session_state['nama_petugas']}**")
-    if st.button("Keluar / Logout", use_container_width=True):
-        st.session_state.clear() # Bersihkan memori Streamlit
-        # Hapus cookie saat logout agar benar-benar keluar
-        cookie_controller.remove('logged_in')
-        cookie_controller.remove('nama_petugas')
-        st.rerun()
+# 4. TAMPILAN UTAMA APLIKASI
 # ---------------------------------
 col_logo, col_judul = st.columns([1, 11])
 with col_logo:
@@ -211,12 +162,12 @@ with col_judul:
 
 tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota", "📊 Dashboard Statistik"])
 
-    # ---------------------------------
-# 4. TAB 1: FORM PENGINPUTAN
+# ---------------------------------
+# TAB 1: FORM PENGINPUTAN
 # ---------------------------------
 with tab1:
     st.subheader("Data Anggota")
-    # --- TAMBAHKAN BLOK KODE INI ---
+    
     # Mengecek apakah ada instruksi untuk mengosongkan form setelah sukses menyimpan
     if "sukses_simpan" in st.session_state and st.session_state["sukses_simpan"]:
         st.session_state["inp_nama"] = ""
@@ -236,7 +187,7 @@ with tab1:
             del st.session_state["inp_satkorkel_text"]
             
         st.session_state["sukses_simpan"] = False # Matikan kembali penandanya
-    # -------------------------------
+
     col1, col2 = st.columns(2)
     
     with col1:
@@ -303,7 +254,7 @@ with tab1:
             st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
 
 # ---------------------------------
-# 5. TAB 2: TAMPILAN DATABASE
+# TAB 2: TAMPILAN DATABASE
 # ---------------------------------
 with tab2:
     st.subheader("Daftar Anggota Terdaftar")
@@ -332,7 +283,7 @@ with tab2:
         st.info("Belum ada data anggota yang terdaftar di Google Sheets.")
 
 # ---------------------------------
-# 6. TAB 3: DASHBOARD STATISTIK
+# TAB 3: DASHBOARD STATISTIK
 # ---------------------------------
 with tab3:
     st.subheader("Visualisasi Data Anggota")
