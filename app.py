@@ -207,11 +207,11 @@ with tab1:
             "Seni musik", "Karya sastra", "Seni pertunjukan", "Seni budaya", 
             "Desain animasi", "Desain interior", "Pendidikan", "Kajian Islam", 
             "Elektronika", "Otomotif", "Pengolahan data", "Pemrograman", 
-            "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", 
-            "Kepemudaan", "Kepemimpinan", "Advokasi masyarakat", "Kegiatan dakwah", 
+            "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", "Tradisi keagamaan",
+            "Kepemudaan", "Kepemimpinan", "Keprotokoleran", "Advokasi masyarakat", "Kegiatan dakwah", 
             "Pemberdayaan UMKM", "Ekonomi bisnis", "Keuangan", "Kuliner", 
             "Olahraga berat", "Olahraga ringan", "Catur", "Game online", 
-            "Kegiatan alam", "Kesehatan", "Lainnya"
+            "Kegiatan alam", "Kegiatan Kebencanaan", "Kesehatan", "Lainnya"
         ]
         minat_list = st.multiselect("11. Minat *", pilihan_minat, key="inp_minat")
         
@@ -224,7 +224,7 @@ with tab1:
             "Bidang perdagangan", "Bidang pertukangan", "Bidang kesehatan", 
             "Memasak", "Menjahit", "Mengemudi", "Bidang administrasi", 
             "Bidang Perikanan", "Bidang Peternakan", "Bidang Pertanian", 
-            "Bidang Perizinan", "Lainnya"
+            "Bidang Perizinan", "Bahasa asing", "Lainnya"
         ]
         bakat_list = st.multiselect("12. Bakat *", pilihan_bakat, key="inp_bakat")
         
