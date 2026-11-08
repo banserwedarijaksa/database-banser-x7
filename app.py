@@ -129,11 +129,6 @@ with col_judul:
 
 tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota", "📊 Dashboard Statistik"])
 
-# ---------------------------------
-# 4. TAB 1: FORM PENGINPUTAN
-# ---------------------------------
-with tab1:
-    st.subheader("Data Anggota")
     # ---------------------------------
 # 4. TAB 1: FORM PENGINPUTAN
 # ---------------------------------
