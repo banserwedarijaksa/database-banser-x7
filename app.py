@@ -84,7 +84,70 @@ st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout=
 # Inisialisasi pengontrol cookie
 cookie_controller = CookieController()
 # ---------------------------------
+# Inisialisasi pengontrol cookie
+cookie_controller = CookieController()
+# ---------------------------------
 # SISTEM LOGIN (MULTI-USER VIA SECRETS)
+# ---------------------------------
+# 1. Baca cookie (saat refresh, Streamlit mungkin butuh waktu sekian milidetik untuk mendapatkannya)
+cookie_logged_in = cookie_controller.get('logged_in')
+cookie_nama_petugas = cookie_controller.get('nama_petugas')
+
+# JIKA cookie mendeteksi Anda sudah login TAPI memori Streamlit terlanjur me-reset (efek refresh),
+# Paksa Streamlit untuk memuat ulang dengan status login yang benar.
+if cookie_logged_in == "True" and st.session_state.get("logged_in") != True:
+    st.session_state["logged_in"] = True
+    st.session_state["nama_petugas"] = cookie_nama_petugas
+    st.rerun()
+
+# Memori default saat sistem pertama kali dibuka dan tidak ada cookie
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+    st.session_state["nama_petugas"] = ""
+
+# 2. Jika belum login, tampilkan form login
+if not st.session_state["logged_in"]:
+    st.markdown("<h2 style='text-align: center;'>🔐 Login Database Banser X-7</h2>", unsafe_allow_html=True)
+    
+    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
+    with col_log2:
+        with st.form("login_form"):
+            in_user = st.text_input("Username")
+            in_pass = st.text_input("Password", type="password")
+            submit_login = st.form_submit_button("Masuk", type="primary", use_container_width=True)
+            
+            if submit_login:
+                if in_user in st.secrets["passwords"] and st.secrets["passwords"][in_user] == in_pass:
+                    # Simpan data ke cookie browser
+                    cookie_controller.set('logged_in', "True")
+                    cookie_controller.set('nama_petugas', in_user)
+                    
+                    # Simpan ke memori sementara Streamlit
+                    st.session_state["logged_in"] = True
+                    st.session_state["nama_petugas"] = in_user
+                    
+                    # Beri jeda 0.5 detik agar instruksi simpan cookie sampai ke browser sebelum halaman di-refresh
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("⚠️ Username atau Password salah!")
+    
+    st.stop()
+
+# 3. Sidebar untuk tombol Logout dan Info Petugas
+with st.sidebar:
+    st.success(f"Masuk sebagai:\n**{st.session_state['nama_petugas']}**")
+    if st.button("Keluar / Logout", use_container_width=True):
+        # Hapus cookie di browser
+        cookie_controller.remove('logged_in')
+        cookie_controller.remove('nama_petugas')
+        
+        # Bersihkan memori Streamlit
+        st.session_state.clear() 
+        
+        # Beri jeda agar instruksi hapus cookie sampai ke browser
+        time.sleep(0.5)
+        st.rerun()
 # ---------------------------------
 # 1. Baca cookie terlebih dahulu sebelum mengecek session_state
 cookie_logged_in = cookie_controller.get('logged_in')
