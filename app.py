@@ -28,7 +28,6 @@ def insert_data(data):
     sheet.append_row(list(data))
 
 def update_data(row_number, data):
-    # Memperbarui data pada baris spesifik di Google Sheets
     cell_list = sheet.range(f'A{row_number}:Q{row_number}')
     for i, val in enumerate(data):
         cell_list[i].value = val
@@ -249,14 +248,20 @@ with tab1:
     if st.button("Simpan Data Anggota", type="primary"):
         if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status and foto_upload:
             df_existing = get_all_data()
-            if no_hp in df_existing['nomor_hp'].astype(str).values:
+            
+            # LOGIKA PENCEGAHAN DUPLIKAT CERDAS (Mengabaikan angka 0 di depan)
+            clean_no_hp = str(no_hp).lstrip("0")
+            existing_hps = df_existing['nomor_hp'].astype(str).str.lstrip("0").values
+            
+            if clean_no_hp in existing_hps:
                 st.error(f"⚠️ Gagal! Nomor HP **{no_hp}** sudah terdaftar di dalam sistem. Pastikan data tidak ganda.")
             else:
                 pengkaderan_str = ", ".join(pengkaderan_list)
                 minat_str = ", ".join(minat_list) 
                 bakat_str = ", ".join(bakat_list) 
                 
-                # Perbaikan Zona Waktu ke WIB (UTC+7)
+                # Menggunakan trik tanda petik tunggal agar Google Sheets membaca nomor HP sebagai Teks utuh
+                hp_untuk_disimpan = f"'{no_hp}" 
                 waktu_input = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S')
                 
                 with st.spinner("Mengunggah foto dan menyimpan data..."):
@@ -264,7 +269,7 @@ with tab1:
                         compressed_foto = compress_image(foto_upload)
                         url_foto = upload_to_imgbb(compressed_foto)
                         data_baru = (
-                            nama, tempat_lahir, str(tanggal_lahir), no_hp, 
+                            nama, tempat_lahir, str(tanggal_lahir), hp_untuk_disimpan, 
                             alamat, pekerjaan, pendidikan, pengkaderan_str, satkoryon, satkorkel, 
                             minat_str, bakat_str, grade, status, url_foto, 
                             waktu_input, st.session_state["nama_petugas"]
@@ -289,7 +294,6 @@ with tab2:
     df_anggota = get_all_data()
     
     if not df_anggota.empty:
-        # Papan Filter
         st.markdown("🔍 **Pencarian & Filter Data**")
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
@@ -304,7 +308,6 @@ with tab2:
         
         df_tampil = df_anggota.copy()
         
-        # Eksekusi Filter
         if cari_nama:
             mask_nama = df_tampil['nama_lengkap'].astype(str).str.contains(cari_nama, case=False, na=False)
             mask_hp = df_tampil['nomor_hp'].astype(str).str.contains(cari_nama, case=False, na=False)
@@ -395,15 +398,17 @@ with tab4:
     edit_hp = st.text_input("🔍 Nomor HP Anggota yang ingin diedit:", placeholder="Contoh: 08123456789")
     
     if edit_hp:
-        matched_data = df_edit[df_edit['nomor_hp'].astype(str) == edit_hp]
+        # LOGIKA PENCARIAN CERDAS (Mengabaikan angka 0 di depan)
+        clean_input = str(edit_hp).lstrip("0")
+        mask = df_edit['nomor_hp'].astype(str).str.lstrip("0") == clean_input
+        matched_data = df_edit[mask]
+        
         if matched_data.empty:
             st.warning(f"Data dengan Nomor HP {edit_hp} tidak ditemukan di dalam sistem.")
         else:
-            # Ambil indeks baris (Excel dimulai dari baris 2)
             idx = matched_data.index[0]
             row_number = idx + 2 
             
-            # Parsing data lama
             c_nama = str(matched_data['nama_lengkap'].values[0])
             c_tempat = str(matched_data['tempat_lahir'].values[0])
             try:
@@ -419,6 +424,11 @@ with tab4:
             c_status = str(matched_data['status_keanggotaan'].values[0])
             c_foto_url = str(matched_data['foto_anggota'].values[0])
             
+            # Format ulang untuk ditampilkan
+            hp_tampil = str(matched_data['nomor_hp'].values[0]).replace("'", "")
+            if not hp_tampil.startswith("0"):
+                hp_tampil = "0" + hp_tampil
+            
             c_kader = [k.strip() for k in str(matched_data['tingkat_pengkaderan'].values[0]).split(', ') if k.strip() in pilihan_pengkaderan]
             c_minat = [m.strip() for m in str(matched_data['minat'].values[0]).split(', ') if m.strip() in pilihan_minat]
             c_bakat = [b.strip() for b in str(matched_data['bakat'].values[0]).split(', ') if b.strip() in pilihan_bakat]
@@ -430,7 +440,7 @@ with tab4:
                     e_nama = st.text_input("1. Nama Lengkap", value=c_nama)
                     e_tempat = st.text_input("2. Tempat Lahir", value=c_tempat)
                     e_tanggal = st.date_input("3. Tanggal Lahir", value=c_tanggal, min_value=datetime.date(1950, 1, 1))
-                    e_hp = st.text_input("4. Nomor HP (Kunci Data)", value=edit_hp, disabled=True)
+                    e_hp = st.text_input("4. Nomor HP (Kunci Data)", value=hp_tampil, disabled=True)
                     e_kerja = st.text_input("6. Pekerjaan", value=c_kerja)
                     e_pendidikan = st.selectbox("7. Pendidikan Terakhir", pilihan_pendidikan, index=get_idx(c_pendidikan, pilihan_pendidikan))
                 with e_col2:
@@ -458,16 +468,16 @@ with tab4:
                 if submit_edit:
                     with st.spinner("Memperbarui data ke database..."):
                         try:
-                            # Tentukan foto mana yang akan disimpan
                             final_foto_url = c_foto_url
                             if e_foto is not None:
                                 compressed_new_foto = compress_image(e_foto)
                                 final_foto_url = upload_to_imgbb(compressed_new_foto)
                                 
+                            hp_untuk_disimpan = f"'{hp_tampil}" 
                             waktu_update = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S')
                             
                             data_update = (
-                                e_nama, e_tempat, str(e_tanggal), edit_hp, 
+                                e_nama, e_tempat, str(e_tanggal), hp_untuk_disimpan, 
                                 e_alamat, e_kerja, e_pendidikan, 
                                 ", ".join(e_kader), e_satkoryon, e_satkorkel, 
                                 ", ".join(e_minat), ", ".join(e_bakat), e_grade, e_status, 
