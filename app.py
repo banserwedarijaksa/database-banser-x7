@@ -4,40 +4,25 @@ import datetime
 import time 
 import io
 import altair as alt
+import json
 import gspread
+import requests
+import base64
 from streamlit_cookies_controller import CookieController
-
-# Import tambahan untuk Foto dan Google Drive
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 from PIL import Image
 
 # ---------------------------------
-# 1. KONFIGURASI DATABASE & GOOGLE DRIVE
+# 1. KONFIGURASI DATABASE (GOOGLE SHEETS)
 # ---------------------------------
 @st.cache_resource
 def init_connection():
     secrets_dict = dict(st.secrets["gcp_service_account"])
-    
-    # 1. Koneksi ke Google Sheets
-    gc = gspread.service_account_from_dict(secrets_dict)
-    
-    # 2. Koneksi ke Google Drive API
-    SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-    creds = service_account.Credentials.from_service_account_info(secrets_dict, scopes=SCOPES)
-    drive_srv = build('drive', 'v3', credentials=creds)
-    
-    return gc, drive_srv
+    return gspread.service_account_from_dict(secrets_dict)
 
-client, drive_service = init_connection()
+client = init_connection()
 SHEET_NAME = 'Database_Banser_X7' 
 sheet = client.open(SHEET_NAME).sheet1
 
-# ID Folder Google Drive Anda
-FOLDER_ID = '1XMW4XN42EgiYkuGKxugr__7Ix57hiY_e'
-
-# --- FUNGSI PENGOLAHAN DATA ---
 def insert_data(data):
     sheet.append_row(list(data))
 
@@ -61,37 +46,33 @@ def get_all_data():
     ]
     return df
 
-# --- FUNGSI KOMPRESI & UNGGAH FOTO ---
+# --- FUNGSI KOMPRESI & UPLOAD IMGBB ---
 def compress_image(uploaded_file):
     img = Image.open(uploaded_file)
-    # Jika foto format PNG transparan, ubah ke RGB
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     
-    # Kecilkan dimensi maksimal 1024x1024
-    img.thumbnail((1024, 1024))
-    
-    # Simpan ke dalam memori komputer sementara (BytesIO)
+    img.thumbnail((800, 800)) # Resolusi ideal
     output = io.BytesIO()
     img.save(output, format="JPEG", quality=75, optimize=True)
     output.seek(0)
     return output
 
-def upload_to_drive(file_stream, filename, folder_id):
-    media = MediaIoBaseUpload(file_stream, mimetype='image/jpeg', resumable=True)
-    file_metadata = {
-        'name': filename,
-        'parents': [folder_id]
-    }
-    # Eksekusi unggah ke Google Drive
-    file = drive_service.files().create(
-        body=file_metadata, 
-        media_body=media, 
-        fields='id, webViewLink'
-    ).execute()
+def upload_to_imgbb(file_stream):
+    api_key = st.secrets["imgbb"]["api_key"]
+    url = "https://api.imgbb.com/1/upload"
     
-    # Mengembalikan tautan/link foto tersebut
-    return file.get('webViewLink')
+    # Konversi gambar ke Base64 untuk dikirim via API
+    payload = {
+        "key": api_key,
+        "image": base64.b64encode(file_stream.read()).decode('utf-8')
+    }
+    
+    response = requests.post(url, data=payload)
+    if response.status_code == 200:
+        return response.json()["data"]["url"]
+    else:
+        raise Exception(f"Gagal mengunggah foto ke ImgBB: {response.text}")
 
 # ---------------------------------
 # 2. DATA REFERENSI SATKORKEL
@@ -129,7 +110,6 @@ st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout=
 # SISTEM LOGIN
 # ---------------------------------
 cookie_controller = CookieController()
-
 cookie_logged_in = cookie_controller.get('logged_in')
 cookie_nama_petugas = cookie_controller.get('nama_petugas')
 
@@ -210,7 +190,6 @@ with tab1:
         st.session_state["inp_grade"] = ""
         st.session_state["inp_status"] = ""
         
-        # Hapus cache file uploader jika ada
         if "inp_foto" in st.session_state:
             del st.session_state["inp_foto"]
         
@@ -283,12 +262,11 @@ with tab1:
         
         status = st.selectbox("14. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
         
-        foto_upload = st.file_uploader("15. Pas Foto Anggota * (Maks 5MB, otomatis dikompres)", type=['jpg', 'jpeg', 'png'], key="inp_foto")
+        foto_upload = st.file_uploader("15. Pas Foto Anggota *", type=['jpg', 'jpeg', 'png'], key="inp_foto")
 
     st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
     
     if st.button("Simpan Data Anggota", type="primary"):
-        # Validasi memastikan foto juga terisi
         if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status and foto_upload:
             
             pengkaderan_str = ", ".join(pengkaderan_list)
@@ -296,28 +274,25 @@ with tab1:
             bakat_str = ", ".join(bakat_list) 
             waktu_input = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            with st.spinner("Memproses foto dan menyimpan data ke awan... Mohon tunggu."):
+            with st.spinner("Mengunggah foto dan menyimpan data..."):
                 try:
                     # 1. Kompresi Foto
                     compressed_foto = compress_image(foto_upload)
                     
-                    # 2. Buat nama file unik (Format: Nama_NoHP.jpg)
-                    nama_file = f"{nama.replace(' ', '_')}_{no_hp}.jpg"
+                    # 2. Upload ke ImgBB
+                    url_foto = upload_to_imgbb(compressed_foto)
                     
-                    # 3. Unggah ke Google Drive dan dapatkan tautan
-                    url_foto = upload_to_drive(compressed_foto, nama_file, FOLDER_ID)
-                    
-                    # 4. Siapkan data baris untuk Google Sheets
+                    # 3. Siapkan data baris untuk Google Sheets
                     data_baru = (
                         nama, tempat_lahir, str(tanggal_lahir), no_hp, 
                         alamat, pekerjaan, pendidikan, 
                         pengkaderan_str, satkoryon, satkorkel, 
                         minat_str, bakat_str, grade, status, 
-                        url_foto, # Link foto dari Google Drive ditaruh di kolom ini
+                        url_foto, 
                         waktu_input, st.session_state["nama_petugas"]
                     )
                     
-                    # 5. Kirim ke Google Sheets
+                    # 4. Kirim ke Google Sheets
                     insert_data(data_baru)
                     
                     st.success(f"✅ Data dan Foto atas nama **{nama}** berhasil disimpan!")
@@ -326,10 +301,10 @@ with tab1:
                     st.rerun()
                     
                 except Exception as e:
-                    st.error(f"⚠️ Terjadi kesalahan sistem: {e}")
+                    st.error(f"⚠️ Terjadi kesalahan: {e}")
                     
         else:
-            st.error("⚠️ Mohon lengkapi seluruh form pendaftaran dan pastikan Anda telah mengunggah pas foto.")
+            st.error("⚠️ Mohon lengkapi form dan pastikan Anda telah mengunggah pas foto.")
 
 # ---------------------------------
 # TAB 2: TAMPILAN DATABASE
@@ -356,7 +331,6 @@ with tab2:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary"
         )
-        # Menampilkan tabel data (Khusus Streamlit versi baru, link bisa diklik)
         st.dataframe(
             df_tampil, 
             use_container_width=True, 
@@ -436,6 +410,3 @@ with tab3:
                 tooltip=['Minat', 'Jumlah']
             ).properties(height=400)
             st.altair_chart(chart_minat, use_container_width=True)
-
-    else:
-        st.info("Visualisasi akan muncul setelah ada minimal satu data anggota yang diinput di Google Sheets.")
