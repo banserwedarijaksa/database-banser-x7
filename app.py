@@ -136,41 +136,6 @@ with st.sidebar:
         cookie_controller.remove('nama_petugas')
         st.rerun()
 # ---------------------------------
-# 1. Pastikan status login dan nama petugas ada di memori
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-    st.session_state["nama_petugas"] = ""
-
-# 2. Jika belum login, tampilkan form login dan hentikan kode di bawahnya
-if not st.session_state["logged_in"]:
-    st.markdown("<h2 style='text-align: center;'>🔐 Login Database Banser X-7</h2>", unsafe_allow_html=True)
-    
-    col_log1, col_log2, col_log3 = st.columns([1, 1, 1])
-    with col_log2:
-        with st.form("login_form"):
-            in_user = st.text_input("Username")
-            in_pass = st.text_input("Password", type="password")
-            submit_login = st.form_submit_button("Masuk", type="primary", use_container_width=True)
-            
-            if submit_login:
-                # Mengecek apakah username ada di Secrets dan password cocok
-                if in_user in st.secrets["passwords"] and st.secrets["passwords"][in_user] == in_pass:
-                    st.session_state["logged_in"] = True
-                    st.session_state["nama_petugas"] = in_user
-                    st.rerun()
-                else:
-                    st.error("⚠️ Username atau Password salah!")
-    
-    # st.stop() akan menghentikan eksekusi script di sini jika belum login
-    st.stop()
-
-# 3. Sidebar untuk tombol Logout dan Info Petugas
-with st.sidebar:
-    st.success(f"Masuk sebagai:\n**{st.session_state['nama_petugas']}**")
-    if st.button("Keluar / Logout", use_container_width=True):
-        st.session_state.clear() # Bersihkan memori saat logout
-        st.rerun()
-# ---------------------------------
 col_logo, col_judul = st.columns([1, 11])
 with col_logo:
     try:
