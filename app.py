@@ -10,6 +10,7 @@ import requests
 import base64
 from streamlit_cookies_controller import CookieController
 from PIL import Image
+import uuid # Library tambahan untuk membuat ID unik
 
 # ---------------------------------
 # 1. KONFIGURASI DATABASE (GOOGLE SHEETS)
@@ -52,7 +53,7 @@ def compress_image(uploaded_file):
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     
-    img.thumbnail((800, 800)) # Resolusi ideal
+    img.thumbnail((800, 800))
     output = io.BytesIO()
     img.save(output, format="JPEG", quality=75, optimize=True)
     output.seek(0)
@@ -62,7 +63,6 @@ def upload_to_imgbb(file_stream):
     api_key = st.secrets["imgbb"]["api_key"]
     url = "https://api.imgbb.com/1/upload"
     
-    # Konversi gambar ke Base64 untuk dikirim via API
     payload = {
         "key": api_key,
         "image": base64.b64encode(file_stream.read()).decode('utf-8')
@@ -105,6 +105,10 @@ data_desa = {
 # 3. KONFIGURASI HALAMAN STREAMLIT
 # ---------------------------------
 st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout="wide")
+
+# Penyiapan "Kunci" Pengunggah Foto agar bisa dikosongkan setelah submit
+if "uploader_key" not in st.session_state:
+    st.session_state["uploader_key"] = str(uuid.uuid4())
 
 # ---------------------------------
 # SISTEM LOGIN
@@ -190,9 +194,6 @@ with tab1:
         st.session_state["inp_grade"] = ""
         st.session_state["inp_status"] = ""
         
-        if "inp_foto" in st.session_state:
-            del st.session_state["inp_foto"]
-        
         if "inp_satkorkel_text" in st.session_state:
             del st.session_state["inp_satkorkel_text"]
             
@@ -262,7 +263,8 @@ with tab1:
         
         status = st.selectbox("14. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
         
-        foto_upload = st.file_uploader("15. Pas Foto Anggota *", type=['jpg', 'jpeg', 'png'], key="inp_foto")
+        # MENGGUNAKAN KUNCI DINAMIS AGAR FOTO RESET SETELAH SUBMIT
+        foto_upload = st.file_uploader("15. Pas Foto Anggota *", type=['jpg', 'jpeg', 'png'], key=st.session_state["uploader_key"])
 
     st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
     
@@ -276,13 +278,9 @@ with tab1:
             
             with st.spinner("Mengunggah foto dan menyimpan data..."):
                 try:
-                    # 1. Kompresi Foto
                     compressed_foto = compress_image(foto_upload)
-                    
-                    # 2. Upload ke ImgBB
                     url_foto = upload_to_imgbb(compressed_foto)
                     
-                    # 3. Siapkan data baris untuk Google Sheets
                     data_baru = (
                         nama, tempat_lahir, str(tanggal_lahir), no_hp, 
                         alamat, pekerjaan, pendidikan, 
@@ -292,11 +290,13 @@ with tab1:
                         waktu_input, st.session_state["nama_petugas"]
                     )
                     
-                    # 4. Kirim ke Google Sheets
                     insert_data(data_baru)
                     
                     st.success(f"✅ Data dan Foto atas nama **{nama}** berhasil disimpan!")
                     time.sleep(2)
+                    
+                    # MERESET KUNCI UPLOADER AGAR TAMPILAN KOSONG TOTAL
+                    st.session_state["uploader_key"] = str(uuid.uuid4())
                     st.session_state["sukses_simpan"] = True
                     st.rerun()
                     
