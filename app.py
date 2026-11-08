@@ -117,7 +117,15 @@ def get_idx(val, lst):
 # 3. KONFIGURASI HALAMAN STREAMLIT
 # ---------------------------------
 st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout="wide")
-
+# Sembunyikan elemen bawaan Streamlit
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = str(uuid.uuid4())
 if "edit_uploader_key" not in st.session_state:
