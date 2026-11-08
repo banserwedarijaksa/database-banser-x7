@@ -4,3 +4,5 @@ openpyxl
 altair
 gspread
 streamlit-cookies-controller
+google-api-python-client
+Pillow
