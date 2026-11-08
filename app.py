@@ -4,29 +4,45 @@ import datetime
 import time 
 import io
 import altair as alt
-import json
 import gspread
 from streamlit_cookies_controller import CookieController
 
+# Import tambahan untuk Foto dan Google Drive
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from PIL import Image
+
 # ---------------------------------
-# 1. KONFIGURASI DATABASE (GOOGLE SHEETS VIA SECRETS)
+# 1. KONFIGURASI DATABASE & GOOGLE DRIVE
 # ---------------------------------
 @st.cache_resource
 def init_connection():
     secrets_dict = dict(st.secrets["gcp_service_account"])
-    return gspread.service_account_from_dict(secrets_dict)
+    
+    # 1. Koneksi ke Google Sheets
+    gc = gspread.service_account_from_dict(secrets_dict)
+    
+    # 2. Koneksi ke Google Drive API
+    SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+    creds = service_account.Credentials.from_service_account_info(secrets_dict, scopes=SCOPES)
+    drive_srv = build('drive', 'v3', credentials=creds)
+    
+    return gc, drive_srv
 
-client = init_connection()
+client, drive_service = init_connection()
 SHEET_NAME = 'Database_Banser_X7' 
 sheet = client.open(SHEET_NAME).sheet1
 
+# ID Folder Google Drive Anda
+FOLDER_ID = '1XMW4XN42EgiYkuGKxugr__7Ix57hiY_e'
+
+# --- FUNGSI PENGOLAHAN DATA ---
 def insert_data(data):
     sheet.append_row(list(data))
 
 def get_all_data():
     records = sheet.get_all_records()
-    
-    # STRUKTUR DATABASE BARU (17 Kolom)
     if not records:
         return pd.DataFrame(columns=[
             'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
@@ -35,9 +51,7 @@ def get_all_data():
             'minat', 'bakat', 'grade_anggota', 'status_keanggotaan', 
             'foto_anggota', 'waktu_input', 'admin'
         ])
-        
     df = pd.DataFrame(records)
-    
     df.columns = [
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
         'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
@@ -46,6 +60,38 @@ def get_all_data():
         'foto_anggota', 'waktu_input', 'admin'
     ]
     return df
+
+# --- FUNGSI KOMPRESI & UNGGAH FOTO ---
+def compress_image(uploaded_file):
+    img = Image.open(uploaded_file)
+    # Jika foto format PNG transparan, ubah ke RGB
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    
+    # Kecilkan dimensi maksimal 1024x1024
+    img.thumbnail((1024, 1024))
+    
+    # Simpan ke dalam memori komputer sementara (BytesIO)
+    output = io.BytesIO()
+    img.save(output, format="JPEG", quality=75, optimize=True)
+    output.seek(0)
+    return output
+
+def upload_to_drive(file_stream, filename, folder_id):
+    media = MediaIoBaseUpload(file_stream, mimetype='image/jpeg', resumable=True)
+    file_metadata = {
+        'name': filename,
+        'parents': [folder_id]
+    }
+    # Eksekusi unggah ke Google Drive
+    file = drive_service.files().create(
+        body=file_metadata, 
+        media_body=media, 
+        fields='id, webViewLink'
+    ).execute()
+    
+    # Mengembalikan tautan/link foto tersebut
+    return file.get('webViewLink')
 
 # ---------------------------------
 # 2. DATA REFERENSI SATKORKEL
@@ -80,7 +126,7 @@ data_desa = {
 st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout="wide")
 
 # ---------------------------------
-# SISTEM LOGIN (MULTI-USER VIA SECRETS & COOKIES)
+# SISTEM LOGIN
 # ---------------------------------
 cookie_controller = CookieController()
 
@@ -164,6 +210,10 @@ with tab1:
         st.session_state["inp_grade"] = ""
         st.session_state["inp_status"] = ""
         
+        # Hapus cache file uploader jika ada
+        if "inp_foto" in st.session_state:
+            del st.session_state["inp_foto"]
+        
         if "inp_satkorkel_text" in st.session_state:
             del st.session_state["inp_satkorkel_text"]
             
@@ -186,7 +236,7 @@ with tab1:
         alamat = st.text_area("5. Alamat Tinggal *", placeholder="Jalan, RT/RW, Desa/Kelurahan", key="inp_alamat")
 
     st.divider()
-    st.subheader("Data Keorganisasian")
+    st.subheader("Data Keorganisasian & Penilaian")
     col3, col4 = st.columns(2)
     
     with col3:
@@ -200,21 +250,21 @@ with tab1:
             satkorkel = st.selectbox("10. Satkorkel (Tingkat Desa/Kelurahan) *", data_desa[satkoryon], key="inp_satkorkel")
         else:
             satkorkel = st.text_input("10. Satkorkel (Tingkat Desa/Kelurahan) *", key="inp_satkorkel_text")
-        
-    with col4:
+            
         pilihan_minat = [
             "Kaligrafi", "Fotografi", "Videografi", "Desain grafis", "Seni lukis", 
             "Seni musik", "Karya sastra", "Seni pertunjukan", "Seni budaya", 
             "Desain animasi", "Desain interior", "Pendidikan", "Kajian Islam", 
             "Elektronika", "Otomotif", "Pengolahan data", "Pemrograman", 
-            "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", "Tradisi keagamaan",
-            "Kepemudaan", "Kepemimpinan", "Keprotokoleran", "Advokasi masyarakat", "Kegiatan dakwah", 
+            "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", 
+            "Kepemudaan", "Kepemimpinan", "Advokasi masyarakat", "Kegiatan dakwah", 
             "Pemberdayaan UMKM", "Ekonomi bisnis", "Keuangan", "Kuliner", 
             "Olahraga berat", "Olahraga ringan", "Catur", "Game online", 
-            "Kegiatan alam", "Kegiatan Kebencanaan", "Kesehatan", "Lainnya"
+            "Kegiatan alam", "Kesehatan", "Lainnya"
         ]
         minat_list = st.multiselect("11. Minat *", pilihan_minat, key="inp_minat")
         
+    with col4:
         pilihan_bakat = [
             "Konsep abstrak", "Pola dan angka", "Berfikir logis", "Berfikir kritis", 
             "Mengorganisasi team", "Analisis kuat", "Pengambilan keputusan", 
@@ -224,7 +274,7 @@ with tab1:
             "Bidang perdagangan", "Bidang pertukangan", "Bidang kesehatan", 
             "Memasak", "Menjahit", "Mengemudi", "Bidang administrasi", 
             "Bidang Perikanan", "Bidang Peternakan", "Bidang Pertanian", 
-            "Bidang Perizinan", "Bahasa asing", "Lainnya"
+            "Bidang Perizinan", "Lainnya"
         ]
         bakat_list = st.multiselect("12. Bakat *", pilihan_bakat, key="inp_bakat")
         
@@ -232,37 +282,54 @@ with tab1:
         grade = st.selectbox("13. Grade Anggota *", pilihan_grade, key="inp_grade")
         
         status = st.selectbox("14. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
+        
+        foto_upload = st.file_uploader("15. Pas Foto Anggota * (Maks 5MB, otomatis dikompres)", type=['jpg', 'jpeg', 'png'], key="inp_foto")
 
     st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
     
-    # Validasi tombol simpan untuk kolom-kolom baru
     if st.button("Simpan Data Anggota", type="primary"):
-        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status:
+        # Validasi memastikan foto juga terisi
+        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status and foto_upload:
             
             pengkaderan_str = ", ".join(pengkaderan_list)
             minat_str = ", ".join(minat_list) 
             bakat_str = ", ".join(bakat_list) 
             waktu_input = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Format data mengikuti 17 kolom baru di Google Sheets Anda
-            data_baru = (
-                nama, tempat_lahir, str(tanggal_lahir), no_hp, 
-                alamat, pekerjaan, pendidikan, 
-                pengkaderan_str, satkoryon, satkorkel, 
-                minat_str, bakat_str, grade, status, 
-                "", # INI ADALAH TEMPAT KOSONG UNTUK FOTO ANGGOTA NANTINYA
-                waktu_input, st.session_state["nama_petugas"]
-            )
-            
-            with st.spinner("Menyimpan ke awan..."):
-                insert_data(data_baru)
-            
-            st.success(f"✅ Data atas nama **{nama}** berhasil disimpan ke Google Sheets!")
-            time.sleep(1.5)
-            st.session_state["sukses_simpan"] = True
-            st.rerun()
+            with st.spinner("Memproses foto dan menyimpan data ke awan... Mohon tunggu."):
+                try:
+                    # 1. Kompresi Foto
+                    compressed_foto = compress_image(foto_upload)
+                    
+                    # 2. Buat nama file unik (Format: Nama_NoHP.jpg)
+                    nama_file = f"{nama.replace(' ', '_')}_{no_hp}.jpg"
+                    
+                    # 3. Unggah ke Google Drive dan dapatkan tautan
+                    url_foto = upload_to_drive(compressed_foto, nama_file, FOLDER_ID)
+                    
+                    # 4. Siapkan data baris untuk Google Sheets
+                    data_baru = (
+                        nama, tempat_lahir, str(tanggal_lahir), no_hp, 
+                        alamat, pekerjaan, pendidikan, 
+                        pengkaderan_str, satkoryon, satkorkel, 
+                        minat_str, bakat_str, grade, status, 
+                        url_foto, # Link foto dari Google Drive ditaruh di kolom ini
+                        waktu_input, st.session_state["nama_petugas"]
+                    )
+                    
+                    # 5. Kirim ke Google Sheets
+                    insert_data(data_baru)
+                    
+                    st.success(f"✅ Data dan Foto atas nama **{nama}** berhasil disimpan!")
+                    time.sleep(2)
+                    st.session_state["sukses_simpan"] = True
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"⚠️ Terjadi kesalahan sistem: {e}")
+                    
         else:
-            st.error("⚠️ Mohon lengkapi seluruh form pendaftaran. Pastikan tidak ada kolom yang terlewat.")
+            st.error("⚠️ Mohon lengkapi seluruh form pendaftaran dan pastikan Anda telah mengunggah pas foto.")
 
 # ---------------------------------
 # TAB 2: TAMPILAN DATABASE
@@ -289,7 +356,15 @@ with tab2:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             type="primary"
         )
-        st.dataframe(df_tampil, use_container_width=True, hide_index=True)
+        # Menampilkan tabel data (Khusus Streamlit versi baru, link bisa diklik)
+        st.dataframe(
+            df_tampil, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={
+                "foto_anggota": st.column_config.LinkColumn("Link Foto")
+            }
+        )
     else:
         st.info("Belum ada data anggota yang terdaftar di Google Sheets.")
 
