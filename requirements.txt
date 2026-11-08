@@ -3,3 +3,4 @@ pandas
 openpyxl
 altair
 gspread
+streamlit-cookies-controller
