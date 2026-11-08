@@ -13,7 +13,6 @@ from streamlit_cookies_controller import CookieController
 # ---------------------------------
 @st.cache_resource
 def init_connection():
-    # Membaca data rahasia dari brankas Streamlit Cloud
     secrets_dict = dict(st.secrets["gcp_service_account"])
     return gspread.service_account_from_dict(secrets_dict)
 
@@ -22,30 +21,29 @@ SHEET_NAME = 'Database_Banser_X7'
 sheet = client.open(SHEET_NAME).sheet1
 
 def insert_data(data):
-    # Menambahkan data sebagai baris baru di Excel online
     sheet.append_row(list(data))
 
 def get_all_data():
-    # Mengambil semua baris data
     records = sheet.get_all_records()
     
-    # Jika Google Sheets hanya berisi header (belum ada data)
+    # STRUKTUR DATABASE BARU (17 Kolom)
     if not records:
         return pd.DataFrame(columns=[
             'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
             'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
             'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
-            'minat_bakat', 'status_keanggotaan', 'waktu_input', 'admin'
+            'minat', 'bakat', 'grade_anggota', 'status_keanggotaan', 
+            'foto_anggota', 'waktu_input', 'admin'
         ])
         
     df = pd.DataFrame(records)
     
-    # Memaksa nama kolom agar seragam dengan sistem sebelumnya untuk grafik
     df.columns = [
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
         'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
         'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
-        'minat_bakat', 'status_keanggotaan', 'waktu_input', 'admin'
+        'minat', 'bakat', 'grade_anggota', 'status_keanggotaan', 
+        'foto_anggota', 'waktu_input', 'admin'
     ]
     return df
 
@@ -84,26 +82,20 @@ st.set_page_config(page_title="Database Ansor Banser", page_icon="🟢", layout=
 # ---------------------------------
 # SISTEM LOGIN (MULTI-USER VIA SECRETS & COOKIES)
 # ---------------------------------
-# Inisialisasi pengontrol cookie
 cookie_controller = CookieController()
 
-# 1. Baca cookie (saat refresh, Streamlit mungkin butuh waktu sekian milidetik untuk mendapatkannya)
 cookie_logged_in = cookie_controller.get('logged_in')
 cookie_nama_petugas = cookie_controller.get('nama_petugas')
 
-# JIKA cookie mendeteksi Anda sudah login TAPI memori Streamlit terlanjur me-reset (efek refresh),
-# Paksa Streamlit untuk memuat ulang dengan status login yang benar.
 if cookie_logged_in == "True" and st.session_state.get("logged_in") != True:
     st.session_state["logged_in"] = True
     st.session_state["nama_petugas"] = cookie_nama_petugas
     st.rerun()
 
-# Memori default saat sistem pertama kali dibuka dan tidak ada cookie
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
     st.session_state["nama_petugas"] = ""
 
-# 2. Jika belum login, tampilkan form login
 if not st.session_state["logged_in"]:
     st.markdown("<h2 style='text-align: center;'>🔐 Login Database Banser X-7</h2>", unsafe_allow_html=True)
     
@@ -116,34 +108,22 @@ if not st.session_state["logged_in"]:
             
             if submit_login:
                 if in_user in st.secrets["passwords"] and st.secrets["passwords"][in_user] == in_pass:
-                    # Simpan data ke cookie browser
                     cookie_controller.set('logged_in', "True")
                     cookie_controller.set('nama_petugas', in_user)
-                    
-                    # Simpan ke memori sementara Streamlit
                     st.session_state["logged_in"] = True
                     st.session_state["nama_petugas"] = in_user
-                    
-                    # Beri jeda 0.5 detik agar instruksi simpan cookie sampai ke browser sebelum halaman di-refresh
                     time.sleep(0.5)
                     st.rerun()
                 else:
                     st.error("⚠️ Username atau Password salah!")
-    
     st.stop()
 
-# 3. Sidebar untuk tombol Logout dan Info Petugas
 with st.sidebar:
     st.success(f"Masuk sebagai:\n**{st.session_state['nama_petugas']}**")
     if st.button("Keluar / Logout", use_container_width=True):
-        # Hapus cookie di browser
         cookie_controller.remove('logged_in')
         cookie_controller.remove('nama_petugas')
-        
-        # Bersihkan memori Streamlit
         st.session_state.clear() 
-        
-        # Beri jeda agar instruksi hapus cookie sampai ke browser
         time.sleep(0.5)
         st.rerun()
 
@@ -168,7 +148,6 @@ tab1, tab2, tab3 = st.tabs(["📝 Form Penginputan", "🗃️ Database Anggota",
 with tab1:
     st.subheader("Data Anggota")
     
-    # Mengecek apakah ada instruksi untuk mengosongkan form setelah sukses menyimpan
     if "sukses_simpan" in st.session_state and st.session_state["sukses_simpan"]:
         st.session_state["inp_nama"] = ""
         st.session_state["inp_tempat"] = ""
@@ -179,14 +158,16 @@ with tab1:
         st.session_state["inp_pendidikan"] = ""
         st.session_state["inp_kader"] = []
         st.session_state["inp_satkoryon"] = ""
-        st.session_state["inp_status"] = ""
+        st.session_state["inp_satkorkel"] = ""
         st.session_state["inp_minat"] = []
-        if "inp_satkorkel" in st.session_state:
-            del st.session_state["inp_satkorkel"]
+        st.session_state["inp_bakat"] = []
+        st.session_state["inp_grade"] = ""
+        st.session_state["inp_status"] = ""
+        
         if "inp_satkorkel_text" in st.session_state:
             del st.session_state["inp_satkorkel_text"]
             
-        st.session_state["sukses_simpan"] = False # Matikan kembali penandanya
+        st.session_state["sukses_simpan"] = False 
 
     col1, col2 = st.columns(2)
     
@@ -221,26 +202,56 @@ with tab1:
             satkorkel = st.text_input("10. Satkorkel (Tingkat Desa/Kelurahan) *", key="inp_satkorkel_text")
         
     with col4:
-        status = st.selectbox("12. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
-        pilihan_minat = ["Olahraga", "Musik", "Seni Rupa", "Menulis", "Matematika", "Bahasa", "Sejarah & Budaya", "Teknologi", "Kuliner", "Mekanik", "Petualangan", "Kegiatan Sosial", "Keagamaan", "Dunia Digital", "Game", "Lainnya_"]
-        minat_bakat_list = st.multiselect("11. Minat & Bakat *", pilihan_minat, key="inp_minat")
+        pilihan_minat = [
+            "Kaligrafi", "Fotografi", "Videografi", "Desain grafis", "Seni lukis", 
+            "Seni musik", "Karya sastra", "Seni pertunjukan", "Seni budaya", 
+            "Desain animasi", "Desain interior", "Pendidikan", "Kajian Islam", 
+            "Elektronika", "Otomotif", "Pengolahan data", "Pemrograman", 
+            "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", 
+            "Kepemudaan", "Kepemimpinan", "Advokasi masyarakat", "Kegiatan dakwah", 
+            "Pemberdayaan UMKM", "Ekonomi bisnis", "Keuangan", "Kuliner", 
+            "Olahraga berat", "Olahraga ringan", "Catur", "Game online", 
+            "Kegiatan alam", "Kesehatan", "Lainnya"
+        ]
+        minat_list = st.multiselect("11. Minat *", pilihan_minat, key="inp_minat")
+        
+        pilihan_bakat = [
+            "Konsep abstrak", "Pola dan angka", "Berfikir logis", "Berfikir kritis", 
+            "Mengorganisasi team", "Analisis kuat", "Pengambilan keputusan", 
+            "Penyelesaian konflik", "Publik speaking", "Kemampuan komunikasi", 
+            "Kemampuan bernegosiasi", "Kemampuan beradaptasi", "Imajinasi visual", 
+            "Bidang mekanik", "Sistem komputer", "Bidang perlistrikan", 
+            "Bidang perdagangan", "Bidang pertukangan", "Bidang kesehatan", 
+            "Memasak", "Menjahit", "Mengemudi", "Bidang administrasi", 
+            "Bidang Perikanan", "Bidang Peternakan", "Bidang Pertanian", 
+            "Bidang Perizinan", "Lainnya"
+        ]
+        bakat_list = st.multiselect("12. Bakat *", pilihan_bakat, key="inp_bakat")
+        
+        pilihan_grade = ["", "A (Excellent)", "B (Good)", "C (Average)", "D (Below)", "F (Failure)"]
+        grade = st.selectbox("13. Grade Anggota *", pilihan_grade, key="inp_grade")
+        
+        status = st.selectbox("14. Status Keanggotaan *", ["", "Aktif", "Tidak Aktif", "Pindah Domisili", "Lulus"], key="inp_status")
 
     st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
     
+    # Validasi tombol simpan untuk kolom-kolom baru
     if st.button("Simpan Data Anggota", type="primary"):
-        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and status and minat_bakat_list:
+        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status:
             
-            # Persiapan data untuk Google Sheets
             pengkaderan_str = ", ".join(pengkaderan_list)
-            minat_bakat_str = ", ".join(minat_bakat_list) 
+            minat_str = ", ".join(minat_list) 
+            bakat_str = ", ".join(bakat_list) 
             waktu_input = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            # Format data persis mengikuti urutan kolom di Google Sheets Anda
+            # Format data mengikuti 17 kolom baru di Google Sheets Anda
             data_baru = (
                 nama, tempat_lahir, str(tanggal_lahir), no_hp, 
                 alamat, pekerjaan, pendidikan, 
                 pengkaderan_str, satkoryon, satkorkel, 
-                minat_bakat_str, status, waktu_input, st.session_state["nama_petugas"]
+                minat_str, bakat_str, grade, status, 
+                "", # INI ADALAH TEMPAT KOSONG UNTUK FOTO ANGGOTA NANTINYA
+                waktu_input, st.session_state["nama_petugas"]
             )
             
             with st.spinner("Menyimpan ke awan..."):
@@ -339,16 +350,17 @@ with tab3:
             st.altair_chart(chart_kader, use_container_width=True)
 
         st.divider()
-        st.markdown("**5. Peta Minat & Bakat Anggota**")
-        semua_minat = df_anggota['minat_bakat'].dropna().astype(str).str.split(', ').explode()
-        minat_count = semua_minat[semua_minat != ""].value_counts().reset_index()
-        minat_count.columns = ['Minat & Bakat', 'Jumlah']
-        chart_minat = alt.Chart(minat_count).mark_bar(color='#4e79a7').encode(
-            x=alt.X('Jumlah:Q', title='Jumlah Peminat'),
-            y=alt.Y('Minat & Bakat:N', sort='-x', title='Kategori Minat'),
-            tooltip=['Minat & Bakat', 'Jumlah']
-        ).properties(height=400)
-        st.altair_chart(chart_minat, use_container_width=True)
+        st.markdown("**5. Peta Minat Anggota**")
+        if 'minat' in df_anggota.columns:
+            semua_minat = df_anggota['minat'].dropna().astype(str).str.split(', ').explode()
+            minat_count = semua_minat[semua_minat != ""].value_counts().reset_index()
+            minat_count.columns = ['Minat', 'Jumlah']
+            chart_minat = alt.Chart(minat_count).mark_bar(color='#4e79a7').encode(
+                x=alt.X('Jumlah:Q', title='Jumlah Peminat'),
+                y=alt.Y('Minat:N', sort='-x', title='Kategori Minat'),
+                tooltip=['Minat', 'Jumlah']
+            ).properties(height=400)
+            st.altair_chart(chart_minat, use_container_width=True)
 
     else:
         st.info("Visualisasi akan muncul setelah ada minimal satu data anggota yang diinput di Google Sheets.")
