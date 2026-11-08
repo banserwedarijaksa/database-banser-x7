@@ -28,29 +28,26 @@ def insert_data(data):
     sheet.append_row(list(data))
 
 def update_data(row_number, data):
-    cell_list = sheet.range(f'A{row_number}:Q{row_number}')
+    # Diperluas menjadi A hingga R (18 Kolom) karena ada tambahan "Satuan"
+    cell_list = sheet.range(f'A{row_number}:R{row_number}')
     for i, val in enumerate(data):
         cell_list[i].value = val
     sheet.update_cells(cell_list)
 
 def get_all_data():
     records = sheet.get_all_records()
-    if not records:
-        return pd.DataFrame(columns=[
-            'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
-            'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
-            'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
-            'minat', 'bakat', 'grade_anggota', 'status_keanggotaan', 
-            'foto_anggota', 'waktu_input', 'admin'
-        ])
-    df = pd.DataFrame(records)
-    df.columns = [
+    # Struktur 18 Kolom Baru
+    columns_layout = [
         'nama_lengkap', 'tempat_lahir', 'tanggal_lahir', 'nomor_hp', 
         'alamat_tinggal', 'pekerjaan', 'pendidikan_terakhir', 
-        'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 
+        'tingkat_pengkaderan', 'satkoryon', 'satkorkel', 'satuan',
         'minat', 'bakat', 'grade_anggota', 'status_keanggotaan', 
         'foto_anggota', 'waktu_input', 'admin'
     ]
+    if not records:
+        return pd.DataFrame(columns=columns_layout)
+    df = pd.DataFrame(records)
+    df.columns = columns_layout
     return df
 
 # --- FUNGSI KOMPRESI & UPLOAD IMGBB ---
@@ -107,6 +104,7 @@ data_desa = {
 pilihan_pendidikan = ["", "SD/MI", "SMP/MTS", "SMA/SMK/MA", "Diploma", "S1", "S2", "S3", "Tidak bersekolah"]
 pilihan_pengkaderan = ["Diklatsar", "Susbalan", "Susbapin", "Diklatsus", "Suspelat", "Belum pernah"]
 pilihan_satkoryon = ["", "Batangan", "Cluwak", "Dukuhseti", "Gabus", "Gembong", "Gunungwungkal", "Jaken", "Jakenan", "Juwana", "Kayen", "Margorejo", "Margoyoso", "Pati", "Pucakwangi", "Sukolilo", "Tambakromo", "Tayu", "Tlogowungu", "Trangkil", "Wedarijaksa", "Winong"]
+pilihan_satuan = ["", "Regular Banser", "Banser Tanggap Bencana (Bagana)", "Banser Relawan Lalu Lintas (Balantas)", "Banser Husada (Basada)", "Banser Maritim (Baritim)", "Banser Protokoler", "Corp Provost Banser (CPB)"]
 pilihan_minat = ["Kaligrafi", "Fotografi", "Videografi", "Desain grafis", "Seni lukis", "Seni musik", "Karya sastra", "Seni pertunjukan", "Seni budaya", "Desain animasi", "Desain interior", "Pendidikan", "Kajian Islam", "Elektronika", "Otomotif", "Pengolahan data", "Pemrograman", "Artificial Intelligence", "Digital marketing", "Kegiatan sosial", "Kepemudaan", "Kepemimpinan", "Advokasi masyarakat", "Kegiatan dakwah", "Pemberdayaan UMKM", "Ekonomi bisnis", "Keuangan", "Kuliner", "Olahraga berat", "Olahraga ringan", "Catur", "Game online", "Kegiatan alam", "Kesehatan", "Lainnya"]
 pilihan_bakat = ["Konsep abstrak", "Pola dan angka", "Berfikir logis", "Berfikir kritis", "Mengorganisasi team", "Analisis kuat", "Pengambilan keputusan", "Penyelesaian konflik", "Publik speaking", "Kemampuan komunikasi", "Kemampuan bernegosiasi", "Kemampuan beradaptasi", "Imajinasi visual", "Bidang mekanik", "Sistem komputer", "Bidang perlistrikan", "Bidang perdagangan", "Bidang pertukangan", "Bidang kesehatan", "Memasak", "Menjahit", "Mengemudi", "Bidang administrasi", "Bidang Perikanan", "Bidang Peternakan", "Bidang Pertanian", "Bidang Perizinan", "Lainnya"]
 pilihan_grade = ["", "A (Excellent)", "B (Good)", "C (Average)", "D (Below)", "F (Failure)"]
@@ -202,6 +200,7 @@ with tab1:
         st.session_state["inp_kader"] = []
         st.session_state["inp_satkoryon"] = ""
         st.session_state["inp_satkorkel"] = ""
+        st.session_state["inp_satuan"] = ""
         st.session_state["inp_minat"] = []
         st.session_state["inp_bakat"] = []
         st.session_state["inp_grade"] = ""
@@ -235,32 +234,34 @@ with tab1:
             satkorkel = st.selectbox("10. Satkorkel (Tingkat Desa/Kelurahan) *", data_desa[satkoryon], key="inp_satkorkel")
         else:
             satkorkel = st.text_input("10. Satkorkel (Tingkat Desa/Kelurahan) *", key="inp_satkorkel_text")
-        minat_list = st.multiselect("11. Minat *", pilihan_minat, key="inp_minat")
+        
+        # PENAMBAHAN INPUT SATUAN KHUSUS
+        satuan = st.selectbox("11. Satuan Khusus *", pilihan_satuan, key="inp_satuan")
+        
+        minat_list = st.multiselect("12. Minat *", pilihan_minat, key="inp_minat")
         
     with col4:
-        bakat_list = st.multiselect("12. Bakat *", pilihan_bakat, key="inp_bakat")
-        grade = st.selectbox("13. Grade Anggota *", pilihan_grade, key="inp_grade")
-        status = st.selectbox("14. Status Keanggotaan *", pilihan_status, key="inp_status")
-        foto_upload = st.file_uploader("15. Pas Foto Anggota *", type=['jpg', 'jpeg', 'png'], key=st.session_state["uploader_key"])
+        bakat_list = st.multiselect("13. Bakat *", pilihan_bakat, key="inp_bakat")
+        grade = st.selectbox("14. Grade Anggota *", pilihan_grade, key="inp_grade")
+        status = st.selectbox("15. Status Keanggotaan *", pilihan_status, key="inp_status")
+        foto_upload = st.file_uploader("16. Pas Foto Anggota *", type=['jpg', 'jpeg', 'png'], key=st.session_state["uploader_key"])
 
     st.markdown("**Catatan: Semua kolom dengan tanda (*) wajib diisi.**")
     
     if st.button("Simpan Data Anggota", type="primary"):
-        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and minat_list and bakat_list and grade and status and foto_upload:
+        if nama and tempat_lahir and tanggal_lahir and no_hp and pekerjaan and pendidikan and alamat and pengkaderan_list and satkoryon and satkorkel and satuan and minat_list and bakat_list and grade and status and foto_upload:
             df_existing = get_all_data()
             
-            # LOGIKA PENCEGAHAN DUPLIKAT CERDAS (Mengabaikan angka 0 di depan)
             clean_no_hp = str(no_hp).lstrip("0")
             existing_hps = df_existing['nomor_hp'].astype(str).str.lstrip("0").values
             
             if clean_no_hp in existing_hps:
-                st.error(f"⚠️ Gagal! Nomor HP **{no_hp}** sudah terdaftar di dalam sistem. Pastikan data tidak ganda.")
+                st.error(f"⚠️ Gagal! Nomor HP **{no_hp}** sudah terdaftar di dalam sistem.")
             else:
                 pengkaderan_str = ", ".join(pengkaderan_list)
                 minat_str = ", ".join(minat_list) 
                 bakat_str = ", ".join(bakat_list) 
                 
-                # Menggunakan trik tanda petik tunggal agar Google Sheets membaca nomor HP sebagai Teks utuh
                 hp_untuk_disimpan = f"'{no_hp}" 
                 waktu_input = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S')
                 
@@ -268,10 +269,11 @@ with tab1:
                     try:
                         compressed_foto = compress_image(foto_upload)
                         url_foto = upload_to_imgbb(compressed_foto)
+                        # DISESUAIKAN MENJADI 18 VARIABEL (Disisipkan 'satuan')
                         data_baru = (
                             nama, tempat_lahir, str(tanggal_lahir), hp_untuk_disimpan, 
                             alamat, pekerjaan, pendidikan, pengkaderan_str, satkoryon, satkorkel, 
-                            minat_str, bakat_str, grade, status, url_foto, 
+                            satuan, minat_str, bakat_str, grade, status, url_foto, 
                             waktu_input, st.session_state["nama_petugas"]
                         )
                         insert_data(data_baru)
@@ -367,14 +369,16 @@ with tab3:
         st.divider()
         col_chart3, col_chart4 = st.columns(2)
         with col_chart3:
-            pendidikan_count = df_anggota['pendidikan_terakhir'].replace("", "Belum Diisi").value_counts().reset_index()
-            pendidikan_count.columns = ['Pendidikan', 'Jumlah']
-            chart_pendidikan = alt.Chart(pendidikan_count).mark_bar(color='#20b2aa').encode(
-                x=alt.X('Pendidikan:N', sort='-y', title='Pendidikan Terakhir', axis=alt.Axis(labelAngle=-45)),
-                y=alt.Y('Jumlah:Q', title='Jumlah Anggota'),
-                tooltip=['Pendidikan', 'Jumlah']
-            ).properties(title="Latar Belakang Pendidikan", height=300)
-            st.altair_chart(chart_pendidikan, use_container_width=True)
+            # Mengganti chart pendidikan dengan chart SATUAN KHUSUS agar lebih informatif
+            if 'satuan' in df_anggota.columns:
+                satuan_count = df_anggota['satuan'].replace("", "Belum Diisi").value_counts().reset_index()
+                satuan_count.columns = ['Satuan', 'Jumlah']
+                chart_satuan = alt.Chart(satuan_count).mark_bar(color='#e15759').encode(
+                    x=alt.X('Satuan:N', sort='-y', title='Satuan Khusus', axis=alt.Axis(labelAngle=-45)),
+                    y=alt.Y('Jumlah:Q', title='Jumlah Anggota'),
+                    tooltip=['Satuan', 'Jumlah']
+                ).properties(title="Distribusi Satuan Khusus", height=300)
+                st.altair_chart(chart_satuan, use_container_width=True)
 
         with col_chart4:
             semua_kader = df_anggota['tingkat_pengkaderan'].dropna().astype(str).str.split(', ').explode()
@@ -398,7 +402,6 @@ with tab4:
     edit_hp = st.text_input("🔍 Nomor HP Anggota yang ingin diedit:", placeholder="Contoh: 08123456789")
     
     if edit_hp:
-        # LOGIKA PENCARIAN CERDAS (Mengabaikan angka 0 di depan)
         clean_input = str(edit_hp).lstrip("0")
         mask = df_edit['nomor_hp'].astype(str).str.lstrip("0") == clean_input
         matched_data = df_edit[mask]
@@ -420,11 +423,11 @@ with tab4:
             c_pendidikan = str(matched_data['pendidikan_terakhir'].values[0])
             c_satkoryon = str(matched_data['satkoryon'].values[0])
             c_satkorkel = str(matched_data['satkorkel'].values[0])
+            c_satuan = str(matched_data['satuan'].values[0])
             c_grade = str(matched_data['grade_anggota'].values[0])
             c_status = str(matched_data['status_keanggotaan'].values[0])
             c_foto_url = str(matched_data['foto_anggota'].values[0])
             
-            # Format ulang untuk ditampilkan
             hp_tampil = str(matched_data['nomor_hp'].values[0]).replace("'", "")
             if not hp_tampil.startswith("0"):
                 hp_tampil = "0" + hp_tampil
@@ -451,17 +454,18 @@ with tab4:
                         e_satkorkel = st.selectbox("10. Satkorkel", data_desa[e_satkoryon], index=get_idx(c_satkorkel, data_desa[e_satkoryon]))
                     else:
                         e_satkorkel = st.text_input("10. Satkorkel", value=c_satkorkel)
+                    e_satuan = st.selectbox("11. Satuan Khusus", pilihan_satuan, index=get_idx(c_satuan, pilihan_satuan))
                         
                 st.divider()
                 e_col3, e_col4 = st.columns(2)
                 with e_col3:
-                    e_minat = st.multiselect("11. Minat", pilihan_minat, default=c_minat)
-                    e_bakat = st.multiselect("12. Bakat", pilihan_bakat, default=c_bakat)
+                    e_minat = st.multiselect("12. Minat", pilihan_minat, default=c_minat)
+                    e_bakat = st.multiselect("13. Bakat", pilihan_bakat, default=c_bakat)
                 with e_col4:
-                    e_grade = st.selectbox("13. Grade", pilihan_grade, index=get_idx(c_grade, pilihan_grade))
-                    e_status = st.selectbox("14. Status", pilihan_status, index=get_idx(c_status, pilihan_status))
+                    e_grade = st.selectbox("14. Grade", pilihan_grade, index=get_idx(c_grade, pilihan_grade))
+                    e_status = st.selectbox("15. Status", pilihan_status, index=get_idx(c_status, pilihan_status))
                     st.markdown(f"[Lihat Foto Saat Ini]({c_foto_url})")
-                    e_foto = st.file_uploader("15. Ganti Foto (Kosongkan jika tidak ingin mengganti)", type=['jpg', 'jpeg', 'png'], key=st.session_state["edit_uploader_key"])
+                    e_foto = st.file_uploader("16. Ganti Foto (Kosongkan jika tidak ingin mengganti)", type=['jpg', 'jpeg', 'png'], key=st.session_state["edit_uploader_key"])
 
                 submit_edit = st.form_submit_button("Simpan Perubahan Data", type="primary")
                 
@@ -476,10 +480,11 @@ with tab4:
                             hp_untuk_disimpan = f"'{hp_tampil}" 
                             waktu_update = (datetime.datetime.utcnow() + datetime.timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S')
                             
+                            # DISESUAIKAN MENJADI 18 VARIABEL
                             data_update = (
                                 e_nama, e_tempat, str(e_tanggal), hp_untuk_disimpan, 
                                 e_alamat, e_kerja, e_pendidikan, 
-                                ", ".join(e_kader), e_satkoryon, e_satkorkel, 
+                                ", ".join(e_kader), e_satkoryon, e_satkorkel, e_satuan,
                                 ", ".join(e_minat), ", ".join(e_bakat), e_grade, e_status, 
                                 final_foto_url, waktu_update, st.session_state["nama_petugas"]
                             )
